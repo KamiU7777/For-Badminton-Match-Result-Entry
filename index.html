@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>かずのぼうけん - 10のまとまりマスター</title>
+  
+  <!-- PWA & Web App Settings -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="かずのぼうけん">
+  <meta name="theme-color" content="#4f46e5">
+
+  <!-- Dynamic Web Manifest Data URI -->
+  <link rel="manifest" href="data:application/manifest+json;utf8,%7B%22name%22%3A%22%E3%81%8B%E3%81%9A%E3%81%AE%E3%81%BD%E3%81%86%E3%81%91%E3%82%93%22%2C%22short_name%22%3A%22%E3%81%8B%E3%81%9A%E3%81%AE%E3%81%BD%E3%81%86%E3%81%91%E3%82%93%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f8fafc%22%2C%22theme_color%22%3A%22%234f46e5%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Cutf8%2C%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Crect%20width%3D'100'%20height%3D'100'%20rx%3D'20'%20fill%3D'%234f46e5'%2F%3E%3Ctext%20x%3D'50'%20y%3D'65'%20font-size%3D'50'%20text-anchor%3D'middle'%20fill%3D'white'%20font-weight%3D'bold'%3E10%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+
+  <!-- Apple Touch Icon (Data URI SVG) -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>10</text></svg>">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap');
+    
+    * {
+      font-family: 'Zen Maru Gothic', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* 10フレームブロックの視覚効果 */
+    .ten-frame-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    .block-pop {
+      animation: pop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0); }
+      80% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+
+    .bounce-me {
+      animation: bounce 0.5s infinite alternate;
+    }
+
+    @keyframes bounce {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-8px); }
+    }
+
+    /* iOS SafeArea Support */
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col text-slate-800 overflow-x-hidden">
+
+  <!-- ヘッダー / アプリタイトル -->
+  <header class="bg-indigo-600 text-white p-3 shadow-md sticky top-0 z-50 flex justify-between items-center">
+    <div class="flex items-center gap-2 cursor-pointer" onclick="goHome()">
+      <span class="text-2xl">🎲</span>
+      <h1 class="text-xl font-bold tracking-wider">かずのぼうけん</h1>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="bg-indigo-800/60 px-3 py-1 rounded-full text-yellow-300 font-bold text-sm flex items-center gap-1">
+        <span>★</span>
+        <span id="starCount">0</span>
+      </div>
+      <button id="soundToggle" onclick="toggleSound()" class="text-xl bg-indigo-700 p-1.5 rounded-full hover:bg-indigo-500 transition">
+        🔊
+      </button>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ領域 -->
+  <main class="flex-1 max-w-lg w-full mx-auto p-4 flex flex-col justify-center items-center">
+
+    <!-- 1. ホーム画面（モード選択） -->
+    <div id="homeScreen" class="w-full space-y-4 text-center">
+      <div class="bg-white p-6 rounded-3xl shadow-lg border-4 border-indigo-100">
+        <h2 class="text-2xl font-black text-indigo-600 mb-2">どのゲームであそぶ？</h2>
+        <p class="text-slate-500 text-xs mb-6">10のまとまりをつくって、さんすうマスターになろう！</p>
+
+        <div class="space-y-3">
+          <button onclick="startMode('pair10')" class="w-full bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold py-4 px-4 rounded-2xl shadow-md border-b-4 border-amber-600 active:translate-y-1 transition text-lg flex items-center justify-between">
+            <span class="text-2xl">🎯</span>
+            <span>あわせて 10！</span>
+            <span class="text-xs bg-white/60 px-2 py-1 rounded-lg">基本</span>
+          </button>
+
+          <button onclick="startMode('add10')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-4 rounded-2xl shadow-md border-b-4 border-emerald-700 active:translate-y-1 transition text-lg flex items-center justify-between">
+            <span class="text-2xl">➕</span>
+            <span>10のへや（くりあがり）</span>
+            <span class="text-xs bg-black/20 px-2 py-1 rounded-lg">たしざん</span>
+          </button>
+
+          <button onclick="startMode('sub10')" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 px-4 rounded-2xl shadow-md border-b-4 border-rose-700 active:translate-y-1 transition text-lg flex items-center justify-between">
+            <span class="text-2xl">➖</span>
+            <span>10からひこう（くりさがり）</span>
+            <span class="text-xs bg-black/20 px-2 py-1 rounded-lg">ひきざん</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- インストール促進案内（iOS/Android用） -->
+      <div id="pwaBanner" class="bg-indigo-50 border border-indigo-200 p-3 rounded-2xl text-xs text-indigo-700 flex items-center justify-between">
+        <div class="text-left">
+          <p class="font-bold">📱 ホーム画面に追加できます！</p>
+          <p class="text-[10px] text-indigo-500">SafariやChromeのメニューから「ホーム画面に追加」を選んでね。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. ゲーム画面 -->
+    <div id="gameScreen" class="w-full hidden flex-col items-center">
+      
+      <!-- プログレスバー & 戻るボタン -->
+      <div class="w-full flex justify-between items-center mb-3 px-1">
+        <button onclick="goHome()" class="text-slate-500 hover:text-slate-800 font-bold text-xs bg-slate-200 px-3 py-1.5 rounded-xl">
+          ← もどる
+        </button>
+        <span id="questionCount" class="text-xs font-bold text-slate-500">だい 1 / 5 もん</span>
+      </div>
+
+      <!-- 問題カード -->
+      <div class="w-full bg-white rounded-3xl p-5 shadow-lg border-2 border-slate-100 flex flex-col items-center min-h-[360px] justify-between relative">
+        
+        <!-- モード1: あわせて10 -->
+        <div id="pair10View" class="w-full hidden flex-col items-center space-y-4">
+          <div class="text-sm font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full">10になる ペアを つくろう！</div>
+          <div class="flex items-center gap-4 my-2">
+            <div id="pairTargetNum" class="text-6xl font-black text-amber-500 bg-amber-100 w-24 h-24 rounded-2xl flex items-center justify-center border-4 border-amber-300 shadow-inner">
+              ?
+            </div>
+            <span class="text-3xl font-bold text-slate-400">+</span>
+            <div class="text-6xl font-black text-slate-300 bg-slate-100 w-24 h-24 rounded-2xl flex items-center justify-center border-4 border-dashed border-slate-300">
+              ?
+            </div>
+          </div>
+          <!-- 10フレームヒントガイド -->
+          <div id="pairFrame" class="ten-frame-grid bg-slate-100 p-2 rounded-xl border-2 border-slate-200 w-52 h-24"></div>
+        </div>
+
+        <!-- モード2: くりあがり足し算 -->
+        <div id="add10View" class="w-full hidden flex-col items-center space-y-3">
+          <div class="text-2xl font-black text-emerald-600" id="addFormula">8 + 5 = ?</div>
+          <p class="text-xs text-slate-500" id="addGuideText">「10のへや」を いっぱいにしよう！</p>
+          
+          <div class="w-full space-y-2">
+            <!-- 10の部屋（トレイ） -->
+            <div class="bg-emerald-50 border-2 border-emerald-300 p-2 rounded-2xl text-center">
+              <span class="text-[10px] font-bold text-emerald-600 block mb-1">🏠 10のへや</span>
+              <div id="addTenFrame" class="ten-frame-grid bg-white p-1.5 rounded-xl border border-emerald-200 h-24 w-full"></div>
+            </div>
+            <!-- あまりの部屋 -->
+            <div class="bg-amber-50 border-2 border-amber-200 p-2 rounded-2xl text-center">
+              <span class="text-[10px] font-bold text-amber-600 block mb-1">📦 あまりのばしょ</span>
+              <div id="addExtraFrame" class="flex flex-wrap gap-1 justify-center min-h-[40px] items-center"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- モード3: くりさがり引き算 -->
+        <div id="sub10View" class="w-full hidden flex-col items-center space-y-3">
+          <div class="text-2xl font-black text-rose-600" id="subFormula">13 - 5 = ?</div>
+          <p class="text-xs text-slate-500" id="subGuideText">「10のへや」から まとめひき！</p>
+          
+          <div class="w-full space-y-2">
+            <!-- 10の部屋 -->
+            <div class="bg-rose-50 border-2 border-rose-300 p-2 rounded-2xl text-center">
+              <span class="text-[10px] font-bold text-rose-600 block mb-1">🏠 10のへや（ここからひく）</span>
+              <div id="subTenFrame" class="ten-frame-grid bg-white p-1.5 rounded-xl border border-rose-200 h-24 w-full"></div>
+            </div>
+            <!-- バラ（端数）の部屋 -->
+            <div class="bg-slate-100 border-2 border-slate-200 p-2 rounded-2xl text-center">
+              <span class="text-[10px] font-bold text-slate-500 block mb-1">🍎 バラのかず</span>
+              <div id="subExtraFrame" class="flex flex-wrap gap-1 justify-center min-h-[30px] items-center"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- メッセージ・フィードバックエリア -->
+        <div id="feedbackText" class="text-sm font-bold text-center h-6 my-1 text-indigo-600"></div>
+
+        <!-- 選択肢ボタン / 操作領域 -->
+        <div id="optionsContainer" class="w-full grid grid-cols-5 gap-2 pt-2">
+          <!-- JSで動的にボタン生成 -->
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 3. 結果発表画面 -->
+    <div id="resultScreen" class="w-full hidden text-center space-y-5">
+      <div class="bg-white p-8 rounded-3xl shadow-xl border-4 border-yellow-300 relative overflow-hidden">
+        <div class="text-6xl mb-2 bounce-me">👑</div>
+        <h2 class="text-3xl font-black text-slate-800">すごーい！</h2>
+        <p class="text-slate-500 font-bold mt-1 text-sm">ぜんぶ クリアできたね！</p>
+
+        <div class="my-6 bg-yellow-50 p-4 rounded-2xl border-2 border-yellow-200 flex justify-center items-center gap-3">
+          <span class="text-3xl">⭐</span>
+          <span class="text-2xl font-black text-amber-600" id="earnedStars">+5 こ かくとく！</span>
+        </div>
+
+        <button onclick="goHome()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg border-b-4 border-indigo-800 active:translate-y-1 transition text-lg">
+          もういちど あそぶ
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    /* ========================================================
+       Web Audio API による効果音システム（外部ファイル不要）
+    ======================================================== */
+    class SoundEffects {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+
+      playPop() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1000, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+
+      playCorrect() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.2, now + idx * 0.08);
+          gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.08 + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.25);
+        });
+      }
+
+      playWrong() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.setValueAtTime(150, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+
+      playFanfare() {
+        if (!this.enabled) return;
+        this.init();
+        const notes = [523.25, 659.25, 783.99, 1046.50, 880, 1046.50];
+        const times = [0, 0.12, 0.24, 0.36, 0.52, 0.68];
+        const durations = [0.1, 0.1, 0.1, 0.15, 0.15, 0.4];
+        const now = this.ctx.currentTime;
+
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.25, now + times[idx]);
+          gain.gain.linearRampToValueAtTime(0.01, now + times[idx] + durations[idx]);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + times[idx]);
+          osc.stop(now + times[idx] + durations[idx]);
+        });
+      }
+    }
+
+    const audio = new SoundEffects();
+    let isSoundOn = true;
+
+    function toggleSound() {
+      isSoundOn = !isSoundOn;
+      audio.enabled = isSoundOn;
+      document.getElementById('soundToggle').innerText = isSoundOn ? '🔊' : '🔇';
+    }
+
+    /* ========================================================
+       ゲーム状態管理（State）
+    ======================================================== */
+    let currentMode = '';
+    let currentQuestionIndex = 0;
+    const TOTAL_QUESTIONS = 5;
+    let stars = parseInt(localStorage.getItem('math_stars') || '0');
+    let currentProblem = {};
+    let stepPhase = 0; // 段階的アニメーション・操作ステップ用
+
+    document.getElementById('starCount').innerText = stars;
+
+    // Service Worker 登録（オフライン対応 PWA）
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swCode = `
+          self.addEventListener('install', e => self.skipWaiting());
+          self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+      });
+    }
+
+    /* 画面切り替え */
+    function showScreen(screenId) {
+      ['homeScreen', 'gameScreen', 'resultScreen'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+        document.getElementById(id).classList.remove('flex');
+      });
+      const target = document.getElementById(screenId);
+      target.classList.remove('hidden');
+      target.classList.add('flex');
+    }
+
+    function goHome() {
+      showScreen('homeScreen');
+    }
+
+    function startMode(mode) {
+      audio.init();
+      currentMode = mode;
+      currentQuestionIndex = 0;
+      showScreen('gameScreen');
+      nextQuestion();
+    }
+
+    /* 問題の生成 */
+    function nextQuestion() {
+      if (currentQuestionIndex >= TOTAL_QUESTIONS) {
+        finishGame();
+        return;
+      }
+
+      currentQuestionIndex++;
+      stepPhase = 0;
+      document.getElementById('questionCount').innerText = `だい ${currentQuestionIndex} / ${TOTAL_QUESTIONS} もん`;
+      document.getElementById('feedbackText').innerText = '';
+
+      // モード別のビュー切り替え
+      ['pair10View', 'add10View', 'sub10View'].forEach(v => document.getElementById(v).classList.add('hidden'));
+
+      if (currentMode === 'pair10') {
+        setupPair10();
+      } else if (currentMode === 'add10') {
+        setupAdd10();
+      } else if (currentMode === 'sub10') {
+        setupSub10();
+      }
+    }
+
+    /* ========================================================
+       モード1: あわせて10
+    ======================================================== */
+    function setupPair10() {
+      document.getElementById('pair10View').classList.remove('hidden');
+      document.getElementById('pair10View').classList.add('flex');
+
+      const num1 = Math.floor(Math.random() * 9) + 1; // 1 ~ 9
+      const ans = 10 - num1;
+      currentProblem = { num1, ans };
+
+      document.getElementById('pairTargetNum').innerText = num1;
+
+      // 10フレームレンダリング
+      const frame = document.getElementById('pairFrame');
+      frame.innerHTML = '';
+      for (let i = 0; i < 10; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'rounded-md flex items-center justify-center text-xs font-bold transition';
+        if (i < num1) {
+          cell.className += ' bg-amber-400 text-white block-pop';
+          cell.innerText = '●';
+        } else {
+          cell.className += ' bg-slate-200 text-slate-300 border border-dashed border-slate-300';
+          cell.innerText = '?';
+        }
+        frame.appendChild(cell);
+      }
+
+      // 選択肢（0〜10）
+      renderOptions([1,2,3,4,5,6,7,8,9], (val) => {
+        if (val === currentProblem.ans) {
+          handleCorrect();
+        } else {
+          handleWrong();
+        }
+      });
+    }
+
+    /* ========================================================
+       モード2: くりあがり足し算 (例: 8 + 5)
+    ======================================================== */
+    function setupAdd10() {
+      document.getElementById('add10View').classList.remove('hidden');
+      document.getElementById('add10View').classList.add('flex');
+
+      // 8+5, 7+6 など（合計が11~18になる問題）
+      const num1 = Math.floor(Math.random() * 4) + 6; // 6, 7, 8, 9
+      const num2 = Math.floor(Math.random() * 4) + (11 - num1); // 繰り上がる数値
+      const ans = num1 + num2;
+      const neededFor10 = 10 - num1;
+      const remaining = num2 - neededFor10;
+
+      currentProblem = { num1, num2, ans, neededFor10, remaining };
+
+      document.getElementById('addFormula').innerText = `${num1} + ${num2} = ?`;
+      document.getElementById('addGuideText').innerText = `10にするために、${num2}から あと いくつもらう？`;
+
+      renderAddFrames(num1, 0, num2);
+
+      // ステップ1: あといくつで10になるかを答える
+      renderOptions([1, 2, 3, 4, 5], (val) => {
+        if (stepPhase === 0) {
+          if (val === currentProblem.neededFor10) {
+            audio.playPop();
+            stepPhase = 1;
+            document.getElementById('addGuideText').innerText = `せいかい！ ${num2}から${val}個もらったよ。あわせると いくつ？`;
+            renderAddFrames(num1, currentProblem.neededFor10, currentProblem.remaining);
+            
+            // ステップ2: 合計を答える選択肢に変更
+            renderOptions(generateChoices(currentProblem.ans), (ansVal) => {
+              if (ansVal === currentProblem.ans) {
+                handleCorrect();
+              } else {
+                handleWrong();
+              }
+            });
+          } else {
+            handleWrong();
+          }
+        }
+      });
+    }
+
+    function renderAddFrames(inTen, moved, inExtra) {
+      const tenFrame = document.getElementById('addTenFrame');
+      const extraFrame = document.getElementById('addExtraFrame');
+      tenFrame.innerHTML = '';
+      extraFrame.innerHTML = '';
+
+      for (let i = 0; i < 10; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'rounded border border-emerald-100 flex items-center justify-center text-xs font-bold';
+        if (i < inTen) {
+          cell.className += ' bg-emerald-500 text-white';
+          cell.innerText = '🔴';
+        } else if (i < inTen + moved) {
+          cell.className += ' bg-amber-400 text-white block-pop';
+          cell.innerText = '🟡';
+        } else {
+          cell.className += ' bg-slate-100';
+        }
+        tenFrame.appendChild(cell);
+      }
+
+      for (let i = 0; i < inExtra; i++) {
+        const item = document.createElement('div');
+        item.className = 'w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center text-xs text-white shadow-sm block-pop';
+        item.innerText = '🟡';
+        extraFrame.appendChild(item);
+      }
+    }
+
+    /* ========================================================
+       モード3: くりさがり引き算 (例: 13 - 5)
+    ======================================================== */
+    function setupSub10() {
+      document.getElementById('sub10View').classList.remove('hidden');
+      document.getElementById('sub10View').classList.add('flex');
+
+      const num1 = Math.floor(Math.random() * 8) + 11; // 11 ~ 18
+      const extra = num1 - 10; // 端数 (13なら3)
+      const sub = Math.floor(Math.random() * 4) + (extra + 1); // 端数より大きい引く数
+      const ans = num1 - sub;
+      const tenRemaining = 10 - sub;
+
+      currentProblem = { num1, extra, sub, ans, tenRemaining };
+
+      document.getElementById('subFormula').innerText = `${num1} - ${sub} = ?`;
+      document.getElementById('subGuideText').innerText = `10のへや から ${sub}個 を まとめひき しよう！`;
+
+      renderSubFrames(10, extra);
+
+      // ステップ1: 10から引いた残りを意識させる
+      renderOptions(generateChoices(ans), (val) => {
+        if (val === currentProblem.ans) {
+          // アニメーション表示で体感させる
+          renderSubFrames(currentProblem.tenRemaining, extra, true);
+          handleCorrect();
+        } else {
+          handleWrong();
+        }
+      });
+    }
+
+    function renderSubFrames(tenCount, extraCount, isSubtracted = false) {
+      const tenFrame = document.getElementById('subTenFrame');
+      const extraFrame = document.getElementById('subExtraFrame');
+      tenFrame.innerHTML = '';
+      extraFrame.innerHTML = '';
+
+      for (let i = 0; i < 10; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'rounded border border-rose-100 flex items-center justify-center text-xs font-bold';
+        if (i < tenCount) {
+          cell.className += ' bg-rose-500 text-white';
+          cell.innerText = '🍎';
+        } else {
+          cell.className += ' bg-slate-100 text-slate-300';
+          cell.innerText = isSubtracted ? '✖' : '';
+        }
+        tenFrame.appendChild(cell);
+      }
+
+      for (let i = 0; i < extraCount; i++) {
+        const item = document.createElement('div');
+        item.className = 'w-5 h-5 bg-slate-400 rounded-full flex items-center justify-center text-[10px] text-white';
+        item.innerText = '🍏';
+        extraFrame.appendChild(item);
+      }
+    }
+
+    /* 共通UIコンポーネント */
+    function renderOptions(numbers, onClick) {
+      const container = document.getElementById('optionsContainer');
+      container.innerHTML = '';
+      numbers.forEach(num => {
+        const btn = document.createElement('button');
+        btn.className = 'bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-black text-xl py-3 rounded-2xl shadow hover:bg-indigo-100 active:scale-95 transition';
+        btn.innerText = num;
+        btn.onclick = () => onClick(num);
+        container.appendChild(btn);
+      });
+    }
+
+    function generateChoices(correct) {
+      const set = new Set([correct]);
+      while (set.size < 5) {
+        let dummy = correct + (Math.floor(Math.random() * 7) - 3);
+        if (dummy >= 0 && dummy <= 20 && dummy !== correct) {
+          set.add(dummy);
+        }
+      }
+      return Array.from(set).sort((a, b) => a - b);
+    }
+
+    function handleCorrect() {
+      audio.playCorrect();
+      document.getElementById('feedbackText').innerHTML = '<span class="text-emerald-500 text-lg">🎉 せいかい！ すごいね！</span>';
+      confetti({ particleCount: 40, spread: 60, origin: { y: 0.7 } });
+      
+      setTimeout(() => {
+        nextQuestion();
+      }, 1200);
+    }
+
+    function handleWrong() {
+      audio.playWrong();
+      const feedback = document.getElementById('feedbackText');
+      feedback.innerHTML = '<span class="text-rose-500">ざんねん！ もういちど かんがえてみよう</span>';
+      feedback.classList.add('bounce-me');
+      setTimeout(() => feedback.classList.remove('bounce-me'), 500);
+    }
+
+    function finishGame() {
+      audio.playFanfare();
+      stars += 5;
+      localStorage.setItem('math_stars', stars.toString());
+      document.getElementById('starCount').innerText = stars;
+      document.getElementById('earnedStars').innerText = '+5 こ かくとく！（ぜんぶで ' + stars + 'こ）';
+      showScreen('resultScreen');
+      confetti({ particleCount: 100, spread: 100, origin: { y: 0.5 } });
+    }
+  </script>
+</body>
+</html>
